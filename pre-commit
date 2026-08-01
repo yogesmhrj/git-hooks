@@ -1,0 +1,41 @@
+#!/bin/bash
+
+TARGET_BRANCH="merge-master"
+
+# Get the current Git branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Only run on the target branch
+if [[ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]]; then
+  exit 0
+fi
+
+CONFIG_FILE="application/config/app.php"
+
+# Get today's year and month
+YEAR=$(date +%y)
+MONTH=$(date +%m)
+
+# Extract current version, e.g., 2025.05.3
+CURRENT_VERSION=$(grep -Eo "'version'\s*=>\s*'([0-9]+\.[0-9]+\.[0-9]+)'" "$CONFIG_FILE" | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+")
+
+# Split current version
+IFS='.' read -r CUR_YEAR CUR_MONTH CUR_PATCH <<< "$CURRENT_VERSION"
+
+# Determine new patch version
+if [[ "$CUR_YEAR" == "$YEAR" && "$CUR_MONTH" == "$MONTH" ]]; then
+  PATCH=$((CUR_PATCH + 1))
+else
+  PATCH=0
+fi
+
+# Construct new version string
+NEW_VERSION="${YEAR}.${MONTH}.${PATCH}"
+
+# Replace the version line in-place
+sed -i -E "s/^(\s*'version'\s*=>\s*)'[^']*'/\1'${NEW_VERSION}'/" "$CONFIG_FILE"
+
+# Stage the updated file
+git add "$CONFIG_FILE"
+
+echo "Updated version to $NEW_VERSION in $CONFIG_FILE"

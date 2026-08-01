@@ -1,0 +1,40 @@
+#!/bin/bash
+
+CONFIG_FILE="application/config/app.php"
+TARGET_BRANCH="merge-master"
+
+# Get the current branch name
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Only run if we are on the merge-master branch after a merge
+if [[ "$CURRENT_BRANCH" != "$TARGET_BRANCH" ]]; then
+  exit 0
+fi
+
+# Get today's year and month
+YEAR=$(date +%y)
+MONTH=$(date +%m)
+
+# Extract current version
+CURRENT_VERSION=$(grep -Eo "'version'\s*=>\s*'([0-9]+\.[0-9]+\.[0-9]+)'" "$CONFIG_FILE" | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+")
+
+IFS='.' read -r CUR_YEAR CUR_MONTH CUR_PATCH <<< "$CURRENT_VERSION"
+
+# Determine new patch version
+if [[ "$CUR_YEAR" == "$YEAR" && "$CUR_MONTH" == "$MONTH" ]]; then
+  PATCH=$((CUR_PATCH + 1))
+else
+  PATCH=0
+fi
+
+# Construct the new version
+NEW_VERSION="${YEAR}.${MONTH}.${PATCH}"
+
+# Update the version line in-place
+sed -i -E "s/^(\s*'version'\s*=>\s*)'[^']*'/\1'${NEW_VERSION}'/" "$CONFIG_FILE"
+
+# Stage and commit the change automatically
+git add "$CONFIG_FILE"
+git commit -m "Auto-bump version to $NEW_VERSION after merge into $TARGET_BRANCH"
+
+echo "Auto-bump version to $NEW_VERSION after merge into $TARGET_BRANCH"
